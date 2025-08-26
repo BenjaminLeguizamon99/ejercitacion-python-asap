@@ -1,125 +1,153 @@
-# from tkinter import *
-# from tkinter import messagebox
-# from tkinter import ttk
-# from modelo import *
-# import modelo
-
-
-# app.py
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
-from datetime import datetime
-import modelo  # tu archivo peewee con guardar_partido()
-
+import modelo
+ 
 class Vista:
     def __init__(self, window):
-
         self.root = window
         self.root.title("DOPARTI")
-
+        self.evento_sel_id = None 
+ 
         s = ttk.Style()
         temas = s.theme_names()
-        if "vista" in temas:          # Windows
+        if "vista" in temas:
             s.theme_use("vista")
-        elif "xpnative" in temas:     # Windows más viejo
-            s.theme_use("xpnative")
         elif "default" in temas:
             s.theme_use("default")
-        else:
-            s.theme_use(temas[0])
-
-        self.mostrar_treeview()
-        self.actualizar_treeview()
+ 
         # --- Título ---
-        ttk.Label(self.root, text="Ingrese una descripción").grid(row=0, column=0, columnspan=2, sticky="we", padx=8, pady=(8,4))
-
+        ttk.Label(self.root, text="Ingrese una descripción").grid(
+            row=0, column=0, columnspan=4, sticky="we", padx=8, pady=(8,4)
+        )
+ 
         # --- Descripción ---
         ttk.Label(self.root, text="Descripción:").grid(row=1, column=0, sticky="e", padx=8, pady=4)
         self.descripcion = ttk.Entry(self.root, width=40)
         self.descripcion.grid(row=1, column=1, sticky="w", padx=8, pady=4)
-
+ 
         # --- Fecha (DateEntry) ---
         ttk.Label(self.root, text="Fecha:").grid(row=2, column=0, sticky="e", padx=8, pady=4)
-        self.fecha = DateEntry(
-            self.root,
-            date_pattern="dd/MM/yyyy",   # muestra dd/mm/aaaa
-            firstweekday="monday",        # semana comienza lunes
-            showweeknumbers=False,
-            locale="es"                   # nombres en español (siempre que tu sistema lo tenga)
-        )
+        self.fecha = DateEntry(self.root, date_pattern="dd/MM/yyyy",
+                               firstweekday="monday", showweeknumbers=False, locale="es", state="readonly")
         self.fecha.grid(row=2, column=1, sticky="w", padx=8, pady=4)
-
+ 
         # --- Orden ---
         ttk.Label(self.root, text="Orden:").grid(row=3, column=0, sticky="e", padx=8, pady=4)
         self.orden = ttk.Spinbox(self.root, from_=1, to=9999, width=5)
         self.orden.set(1)
         self.orden.grid(row=3, column=1, sticky="w", padx=8, pady=4)
-
-        # --- Botón Guardar ---
-        self.btn_guardar = ttk.Button(self.root, text="Guardar", command=self.guardar)
-        self.btn_guardar.grid(row=4, column=0, columnspan=2, pady=12)
-
-        # algo de padding general
-        for i in range(2):
-            self.root.grid_columnconfigure(i, weight=1)
-
-    def guardar(self):
-        descripcion = self.descripcion.get().strip()
-        if not descripcion:
-            messagebox.showwarning("Falta descripción", "Ingresá una descripción.")
-            return
-
-        try:
-            fecha_sel = self.fecha.get_date()# devuelve datetime.date
-            orden = int(self.orden.get())
-            #fecha = datetime.strptime(fecha_sel, '%d/%m/%Y').date()
-
-            # Si tu modelo usa DateField -> mandamos date (OK)
-            # Si tu modelo usa DateTimeField, convertir: datetime.combine(fecha_sel, datetime.min.time())
-            modelo.guardar_partido(fecha_sel, descripcion, orden)
-
-
-            messagebox.showinfo("Guardado", f"Se guardó el evento '{descripcion}' para el {fecha_sel.strftime('%d/%m/%Y')}.")
-            self.actualizar_treeview()
-            self.descripcion.delete(0, tk.END)
-            self.orden.set(1)
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo guardar.\n{e}")
-
-    
-    def mostrar_treeview(self):
+ 
+        # --- Botones ---
+        ttk.Button(self.root, text="Guardar", command=self.guardar).grid(row=4, column=0, pady=12)
+        ttk.Button(self.root, text="Editar (cargar)", command=self.editar_cargar).grid(row=4, column=1, pady=12, sticky="w")
+        ttk.Button(self.root, text="Actualizar", command=self.actualizar).grid(row=4, column=2, pady=12, sticky="w")
+        ttk.Button(self.root, text="Eliminar", command=self.eliminar).grid(row=4, column=3, pady=12, sticky="w")
+ 
+        # --- Treeview (3 visibles; ID oculto en #0) ---
         self.tree = ttk.Treeview(self.root)
-        self.tree["columns"]=("col1", "col2", "col3")
-        self.tree.column("col1", width=200, minwidth=80)
-        self.tree.column("col2", width=200, minwidth=80)
-        self.tree.column("col3", width=200, minwidth=80)
+        self.tree["columns"] = ("col1", "col2", "col3")  # Orden, Descripción, Fecha
+        self.tree.column("#0", width=0, stretch=False)   # oculto: ID
+        self.tree.heading("#0", text="")
+        self.tree.column("col1", width=120, anchor="center")
+        self.tree.column("col2", width=300, anchor="w")
+        self.tree.column("col3", width=120, anchor="center")
         self.tree.heading("col1", text="Orden")
-        self.tree.heading("col2", text="Descripcion")
-        self.tree.heading("col3", text="fecha")
-        self.tree.grid(row=10, column=0, columnspan=3)
-
-
+        self.tree.heading("col2", text="Descripción")
+        self.tree.heading("col3", text="Fecha")
+        self.tree.grid(row=10, column=0, columnspan=4, sticky="nsew", padx=8, pady=8)
+ 
+        # Layout
+        for i in range(4):
+            self.root.grid_columnconfigure(i, weight=1)
+        self.root.grid_rowconfigure(10, weight=1)
+ 
+        # Cargar datos
+        self.actualizar_treeview()
+ 
+    # ---------- Rutinas ----------
+    def guardar(self):
+        res = modelo.guardar_partido(self.fecha, self.descripcion, self.orden)
+        if res == "ok":
+            messagebox.showinfo("Guardado", "Evento guardado correctamente.")
+            self.actualizar_treeview()
+            self._limpiar_form()
+        else:
+            messagebox.showerror("Error", res)
+ 
+    def editar_cargar(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Atención", "Seleccioná un elemento del listado.")
+            return
+        iid = sel[0]
+        eid = self.tree.item(iid).get("text")  # ID oculto
+        datos = modelo.obtener_partido(int(eid))
+        if not datos:
+            messagebox.showerror("Error", "No se encontró el registro seleccionado.")
+            return
+ 
+        # datos = (id, orden, descripcion, fecha)
+        self.evento_sel_id = datos[0]
+        orden, desc, fecha = datos[1], datos[2], datos[3]
+ 
+        self.orden.set(orden)
+        self.descripcion.delete(0, tk.END)
+        self.descripcion.insert(0, desc)
+        try:
+            self.fecha.set_date(fecha)
+        except Exception:
+            pass
+ 
+        messagebox.showinfo("Editar", "Registro cargado en el formulario. Modificá y presioná 'Actualizar'.")
+ 
+    def actualizar(self):
+        if not self.evento_sel_id:
+            messagebox.showwarning("Atención", "Primero cargá un registro con el botón 'Editar (cargar)'.")
+            return
+        res = modelo.actualizar_partido(self.evento_sel_id, self.fecha, self.descripcion, self.orden)
+        if res == "ok":
+            messagebox.showinfo("OK", "Evento actualizado.")
+            self.actualizar_treeview()
+            self._limpiar_form()
+            self.evento_sel_id = None
+        else:
+            messagebox.showerror("Error", res)
+ 
+    def eliminar(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Atención", "Seleccioná un elemento del listado.")
+            return
+        if not messagebox.askyesno("Confirmar", "¿Eliminar el/los elemento(s) seleccionado(s)?"):
+            return
+ 
+        errores = []
+        for iid in sel:
+            eid = self.tree.item(iid).get("text")
+            r = modelo.eliminar_partido(int(eid))
+            if r == "ok":
+                self.tree.delete(iid)
+            else:
+                errores.append(r)
+        if errores:
+            messagebox.showerror("Error", "\n".join(errores))
+        else:
+            messagebox.showinfo("OK", "Elemento(s) eliminado(s).")
+ 
     def actualizar_treeview(self):
-        records = self.tree.get_children()
-        for element in records:
-            self.tree.delete(element)
-        resultado = modelo.ver_partidos()
-        for fila in resultado:
-            print(fila)
-            self.tree.insert("", 0, values=(fila[0], fila[1], fila[2]))
-
-
+        for it in self.tree.get_children():
+            self.tree.delete(it)
+        for (eid, orden, desc, fecha) in (modelo.ver_partidos() or []):
+            fecha_str = getattr(fecha, "strftime", lambda *_: str(fecha))("%d/%m/%Y")
+            self.tree.insert("", "end", text=eid, values=(orden, desc, fecha_str))
+ 
+    # ---------- Aux ----------
+    def _limpiar_form(self):
+        self.descripcion.delete(0, tk.END)
+        self.orden.set(1)
+ 
 if __name__ == "__main__":
     root = tk.Tk()
-    # Opcional: tema ttk
-    try:
-        from tkinter import ttk
-        root.style = ttk.Style()
-        root.style.theme_use("clam")
-    except:
-        pass
-
-    app = Vista(root)
-    app.actualizar_treeview()
+    Vista(root)
     root.mainloop()
