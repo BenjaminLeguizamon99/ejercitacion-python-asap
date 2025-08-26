@@ -17,7 +17,7 @@ class Vista:
             s.theme_use("default")
  
         # --- Título ---
-        ttk.Label(self.root, text="Ingrese una descripción").grid(
+        ttk.Label(self.root, text="Ingrese los datos del evento deportivo.").grid(
             row=0, column=0, columnspan=4, sticky="we", padx=8, pady=(8,4)
         )
  
@@ -44,10 +44,10 @@ class Vista:
         ttk.Button(self.root, text="Actualizar", command=self.actualizar).grid(row=4, column=2, pady=12, sticky="w")
         ttk.Button(self.root, text="Eliminar", command=self.eliminar).grid(row=4, column=3, pady=12, sticky="w")
  
-        # --- Treeview (3 visibles; ID oculto en #0) ---
+        # --- Treeview ---
         self.tree = ttk.Treeview(self.root)
         self.tree["columns"] = ("col1", "col2", "col3")  # Orden, Descripción, Fecha
-        self.tree.column("#0", width=0, stretch=False)   # oculto: ID
+        self.tree.column("#0", width=0, stretch=False)   # oculto: ID del objeto
         self.tree.heading("#0", text="")
         self.tree.column("col1", width=120, anchor="center")
         self.tree.column("col2", width=300, anchor="w")
@@ -80,8 +80,8 @@ class Vista:
         if not sel:
             messagebox.showwarning("Atención", "Seleccioná un elemento del listado.")
             return
-        iid = sel[0]
-        eid = self.tree.item(iid).get("text")  # ID oculto
+        indice = sel[0]
+        eid = self.tree.item(indice).get("text")  # ID del objeto
         datos = modelo.obtener_partido(int(eid))
         if not datos:
             messagebox.showerror("Error", "No se encontró el registro seleccionado.")
@@ -123,11 +123,11 @@ class Vista:
             return
  
         errores = []
-        for iid in sel:
-            eid = self.tree.item(iid).get("text")
+        for indice in sel:
+            eid = self.tree.item(indice).get("text")
             r = modelo.eliminar_partido(int(eid))
             if r == "ok":
-                self.tree.delete(iid)
+                self.tree.delete(indice)
             else:
                 errores.append(r)
         if errores:
