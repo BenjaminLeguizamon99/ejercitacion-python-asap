@@ -26,9 +26,13 @@ def guardar_partido(fecha_widget, descripcion_widget, orden_widget):
     else:
         raw = (fecha_widget.get() or "").strip()
         fecha = datetime.strptime(raw, "%d/%m/%Y").date()
- 
-    orden = int(orden_widget.get())
- 
+    
+    orden_str = (orden_widget.get() or "").strip()
+    if not orden_str.isdigit():
+        return "error: el orden debe ser un número entero positivo"
+
+    orden = int(orden_str)
+    
     Evento.create(fecha=fecha, descripcion=descripcion, orden=orden)
     return "ok"
  

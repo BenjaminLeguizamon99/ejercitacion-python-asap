@@ -9,13 +9,6 @@ class Vista:
         self.root.title("DOPARTI")
         self.evento_sel_id = None 
  
-        s = ttk.Style()
-        temas = s.theme_names()
-        if "vista" in temas:
-            s.theme_use("vista")
-        elif "default" in temas:
-            s.theme_use("default")
- 
         # --- Título ---
         ttk.Label(self.root, text="Ingrese los datos del evento deportivo.").grid(
             row=0, column=0, columnspan=4, sticky="we", padx=8, pady=(8,4)
@@ -99,7 +92,6 @@ class Vista:
         except Exception:
             pass
  
-        messagebox.showinfo("Editar", "Registro cargado en el formulario. Modificá y presioná 'Actualizar'.")
  
     def actualizar(self):
         if not self.evento_sel_id:
